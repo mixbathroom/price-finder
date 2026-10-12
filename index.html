@@ -10,7 +10,7 @@
   --bg:#f3f5f7; --surface:#ffffff; --surface2:#eaeef2; --line:#d7dde4;
   --fg:#17212b; --muted:#5d6b78; --accent:#0b5cad; --accent-ink:#ffffff;
   --accent-soft:#e2edf9; --best:#0f7a4f; --best-soft:#dff3ea; --warn:#9a5b00; --warn-soft:#fbefd9;
-  --mark:#fff0a8; --th:#f6dcc8; --th-fg:#3a2414; --bc:#fff7b0; --cost:#fbeee4; --hover:rgba(11,92,173,.06);
+  --mark:#fff0a8; --danger:#c0392b; --th:#f6dcc8; --th-fg:#3a2414; --bc:#fff7b0; --cost:#fbeee4; --hover:rgba(11,92,173,.06);
   --f-display:"Bai Jamjuree","IBM Plex Sans Thai",system-ui,sans-serif;
   --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -19,12 +19,12 @@
   --bg:#0f151b; --surface:#16202a; --surface2:#1d2934; --line:#2b3a47;
   --fg:#e5ecf2; --muted:#93a3b2; --accent:#5ea8f2; --accent-ink:#0b1622;
   --accent-soft:#16304a; --best:#4fd19a; --best-soft:#123326; --warn:#f0b15a; --warn-soft:#3a2a12;
-  --mark:#5c4d0a; --th:#3a2a1f; --th-fg:#f3dcc9; --bc:#3a3612; --cost:#2b221b; --hover:rgba(94,168,242,.08); color-scheme:dark }}
+  --mark:#5c4d0a; --danger:#ff7a6b; --th:#3a2a1f; --th-fg:#f3dcc9; --bc:#3a3612; --cost:#2b221b; --hover:rgba(94,168,242,.08); color-scheme:dark }}
 :root[data-theme="dark"]{
   --bg:#0f151b; --surface:#16202a; --surface2:#1d2934; --line:#2b3a47;
   --fg:#e5ecf2; --muted:#93a3b2; --accent:#5ea8f2; --accent-ink:#0b1622;
   --accent-soft:#16304a; --best:#4fd19a; --best-soft:#123326; --warn:#f0b15a; --warn-soft:#3a2a12;
-  --mark:#5c4d0a; --th:#3a2a1f; --th-fg:#f3dcc9; --bc:#3a3612; --cost:#2b221b; --hover:rgba(94,168,242,.08); color-scheme:dark }
+  --mark:#5c4d0a; --danger:#ff7a6b; --th:#3a2a1f; --th-fg:#f3dcc9; --bc:#3a3612; --cost:#2b221b; --hover:rgba(94,168,242,.08); color-scheme:dark }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
 .wrap{max-width:1080px;margin:0 auto;padding-inline:16px}
@@ -167,6 +167,13 @@ table.st tbody tr:hover td{background-image:linear-gradient(var(--hover),var(--h
 .exp .btn{font-weight:600;color:var(--accent);border-color:var(--accent)}
 .exp .btn:disabled{opacity:.6;cursor:wait}
 @media (max-width:560px){.exp{width:100%;margin-left:0}.exp .btn{flex:1}}
+table.st th.del,table.st td.del{position:sticky;right:0;background:var(--surface);text-align:center;padding:4px 6px;z-index:1;border-left:1px solid var(--line)}
+table.st thead th.del{z-index:3;background:var(--th)}
+table.st thead tr:first-child th.del{background:var(--surface)}
+.delbtn{font:inherit;font-size:.74rem;font-weight:600;color:var(--danger);background:transparent;border:1px solid var(--danger);border-radius:6px;padding:3px 8px;cursor:pointer}
+.delbtn:hover{background:var(--danger);color:var(--surface)}
+.listp .delbtn{margin-top:6px}
+.undo{font:inherit;font-size:.82rem;border:0;background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:2px 8px;cursor:pointer;margin-left:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -424,6 +431,7 @@ function scoreToken(tok,cands){
 
 function minNtt(it){let m=null;it.prices.forEach((p,k)=>{if(activeChains.has(k)&&p.n!=null&&p.n>0&&(m==null||p.n<m))m=p.n;});return m;}
 
+const removed=new Set(); let searchKey="";
 function runSearch(){
   if(!DB) return;
   const raw=$("q").value;
@@ -464,13 +472,15 @@ function runSearch(){
   } else {
     list.sort((a,b)=>b.s-a.s||it(a.i).th.length-it(b.i).th.length||a.i-b.i);
   }
-  results=list.map(r=>r.i); shown=PAGE;
+  const key=raw.trim()+"|"+fs+"|"+fm;
+  if(key!==searchKey){removed.clear();searchKey=key;}
+  results=list.map(r=>r.i).filter(i=>!removed.has(i)); shown=PAGE;
   // notices
   const nb=$("notice");
   if(relaxed&&results.length){nb.hidden=false;nb.textContent="ไม่พบสินค้าที่ตรงครบทุกคำ จึงแสดงรายการที่ใกล้เคียงที่สุดแทน";}
   else nb.hidden=true;
   renderSuggest(toks.length?sugg:null);
-  $("count").textContent=(toks.length?"พบ ":"ทั้งหมด ")+results.length.toLocaleString("th-TH")+" รายการ";
+  updateCount(toks.length>0);
   render();
 }
 
@@ -552,7 +562,7 @@ function card(i){
   ].join("");
   return `<article class="card">
     <div class="c-head"><div style="min-width:0"><div class="c-name">${hl(it.th||it.en)}</div>${it.en&&it.th?`<div class="c-en">${hl(it.en)}</div>`:""}</div>
-    <div class="listp"><div class="k">ราคาตั้ง</div><div class="v">${listTxt}</div></div></div>
+    <div class="listp"><div class="k">ราคาตั้ง</div><div class="v">${listTxt}</div><button type="button" class="delbtn" data-del="${i}" aria-label="ลบรายการนี้">ลบ</button></div></div>
     <div class="tags">${tags}</div>
     ${open?detail:`<div class="tiles">${tiles}</div>`}</article>`;
 }
@@ -593,15 +603,15 @@ function renderViewBar(){
 function sheetTable(idxs){
   const k=curChain(); const cn=esc(DB.chains[k]);
   const pc=x=>(Math.round((x||0)*1000)/10).toString().replace(/\.0$/,"")+"%";
-  const head=`<tr class="band"><th class="stick" colspan="1"></th><th colspan="6"></th><th colspan="10" class="chainband">${cn}</th><th colspan="3"></th></tr>
+  const head=`<tr class="band"><th class="stick" colspan="1"></th><th colspan="6"></th><th colspan="10" class="chainband">${cn}</th><th colspan="3"></th><th class="del"></th></tr>
   <tr><th class="stick">BARCODE</th><th class="nm">DESCR_TH</th><th>L3_SUBBRAND</th><th>L4_BrandSpecial</th><th>L8_FEATURE</th><th>L11_SHADE</th><th>SIZE</th>
-  <th>ราคาตั้งใหม่</th>${DISC_LABELS.map(x=>`<th>${x}</th>`).join("")}<th class="cost">ราคาทุน Exvat</th><th class="gp">GP% แนะนำ</th><th class="sell">ราคาขายรวม Vat</th></tr>`;
+  <th>ราคาตั้งใหม่</th>${DISC_LABELS.map(x=>`<th>${x}</th>`).join("")}<th class="cost">ราคาทุน Exvat</th><th class="gp">GP% แนะนำ</th><th class="sell">ราคาขายรวม Vat</th><th class="del">ลบ</th></tr>`;
   const rows=idxs.map(i=>{
     const it=DB.items[i], p=it.prices[k], s=sellOf(p.n);
     return `<tr><td class="stick bc" data-copy="${esc(it.bc||it.id)}" title="${esc(it.id)} · คลิกเพื่อคัดลอก">${hl(it.bc||it.id)}</td>
       <td class="nm">${hl(it.th||it.en)}</td><td class="tx">${esc(it.sub)}</td><td class="tx">${esc(it.spec)}</td><td class="tx">${esc(it.feat)}</td><td class="tx">${hl(it.shade)}</td><td class="tx c">${esc(it.size)}</td>
       <td class="num">${fmt(p.l)}</td>${p.d.map(x=>`<td class="num${x?"":" z"}">${pc(x)}</td>`).join("")}
-      <td class="num cost">${fmt(p.n)}${p.sp?'<span class="sp" title="NTT ราคาพิเศษ">●</span>':""}</td><td class="num gp">${GP}%</td><td class="num sell">${s==null?"–":fmt(s)}</td></tr>`;
+      <td class="num cost">${fmt(p.n)}${p.sp?'<span class="sp" title="NTT ราคาพิเศษ">●</span>':""}</td><td class="num gp">${GP}%</td><td class="num sell">${s==null?"–":fmt(s)}</td><td class="del"><button type="button" class="delbtn" data-del="${i}" aria-label="ลบรายการนี้" title="ลบรายการนี้ออกจากผลค้นหา">ลบ</button></td></tr>`;
   }).join("");
   return `<div class="sheet"><table class="st"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
 }
@@ -683,6 +693,14 @@ function copyLine(){
   try{ navigator.clipboard.writeText(txt).then(()=>toast(`คัดลอก ${list.length} รายการแล้ว วางใน LINE ได้เลย`),fallback); }catch(e){ fallback(); }
 }
 
+let lastHadQuery=false;
+function updateCount(hasQ){
+  if(hasQ!==undefined) lastHadQuery=hasQ;
+  const c=$("count");
+  c.innerHTML=esc((lastHadQuery?"พบ ":"ทั้งหมด ")+results.length.toLocaleString("th-TH")+" รายการ")+
+    (removed.size?` · ลบไป ${removed.size} รายการ <button type="button" class="undo" id="btnUndo">คืนทั้งหมด</button>`:"");
+  const u=$("btnUndo"); if(u) u.onclick=()=>{removed.clear();searchKey="";runSearch();toast("คืนรายการที่ลบแล้ว");};
+}
 function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,1600);}
 
 function buildChains(){
@@ -773,6 +791,8 @@ $("btnDetail").onclick=()=>{detailAll=!detailAll;$("btnDetail").setAttribute("ar
 $("btnImport").onclick=()=>$("file").click();
 $("file").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value="";};
 $("list").addEventListener("click",e=>{
+  const del=e.target.closest("[data-del]");
+  if(del){const i=+del.dataset.del; removed.add(i); results=results.filter(x=>x!==i); updateCount(); render(); toast("ลบรายการแล้ว"); return;}
   const cp=e.target.closest("[data-copy]");
   if(cp){const v=cp.dataset.copy;
     const done=()=>toast("คัดลอก "+v+" แล้ว");
