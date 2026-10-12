@@ -585,8 +585,8 @@ function renderViewBar(){
   bar.innerHTML=`<div class="seg" role="tablist" aria-label="มุมมอง">
       <button type="button" data-view="table" aria-pressed="${VIEW==="table"}">ตาราง</button>
       <button type="button" data-view="card" aria-pressed="${VIEW==="card"}">การ์ด</button></div>`+
-    (VIEW==="table"?`<div class="seg tabs" role="tablist" aria-label="ห้าง">${ks.map(k=>`<button type="button" data-tchain="${k}" aria-pressed="${k===c}">${esc(DB.chains[k])}</button>`).join("")}</div>`:"")+
-    `<div class="exp"><button type="button" class="btn" id="btnXlsx">ส่งออก Excel</button><button type="button" class="btn" id="btnLine">คัดลอกส่ง LINE</button></div>`;
+    `<div class="seg tabs" role="tablist" aria-label="ห้าง">${ks.map(k=>`<button type="button" data-tchain="${k}" aria-pressed="${k===c}">${esc(DB.chains[k])}</button>`).join("")}</div>`+
+    `<div class="exp"><button type="button" class="btn" id="btnXlsx">ส่งออก Excel · ${esc(DB.chains[c])}</button><button type="button" class="btn" id="btnLine">คัดลอกส่ง LINE · ${esc(DB.chains[c])}</button></div>`;
 }
 function sheetTable(idxs){
   const k=curChain(); const cn=esc(DB.chains[k]);
@@ -625,7 +625,7 @@ async function saveFile(filename,blob){
 }
 async function exportXlsx(){
   if(!results.length){toast("ไม่มีรายการให้ส่งออก");return;}
-  const ks=exportChains(); if(!ks.length){toast("เลือกห้างอย่างน้อย 1 ห้าง");return;}
+  const ks=[curChain()]; if(ks[0]==null){toast("เลือกห้างอย่างน้อย 1 ห้าง");return;}
   const btn=$("btnXlsx"); if(btn){btn.disabled=true;btn.textContent="กำลังสร้างไฟล์…";}
   try{
     if(typeof ExcelJS==="undefined") await loadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js");
@@ -660,22 +660,22 @@ async function exportXlsx(){
       ws.autoFilter={from:{row:2,column:1},to:{row:2+results.length,column:20}};
     });
     const buf=await wb.xlsx.writeBuffer();
-    await saveFile(`Beger_Price_${stamp()}.xlsx`,new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    await saveFile(`Beger_Price_${DB.chains[ks[0]]}_${stamp()}.xlsx`,new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
   }catch(e){ toast(e.message||"สร้างไฟล์ไม่สำเร็จ"); }
-  finally{ const b=$("btnXlsx"); if(b){b.disabled=false;b.textContent="ส่งออก Excel";} }
+  finally{ const b=$("btnXlsx"); if(b){b.disabled=false;b.textContent="ส่งออก Excel · "+DB.chains[curChain()];} }
 }
 function copyLine(){
   if(!results.length){toast("ไม่มีรายการให้คัดลอก");return;}
-  const ks=VIEW==="table"?[curChain()]:exportChains();
+  const ks=[curChain()];
   const list=results.slice(0,LINE_MAX);
   const blocks=list.map(i=>{
     const it=DB.items[i];
     const head=`▪️ ${it.th||it.en}`+(it.size?` [${it.size}]`:"");
     const sub=`บาร์โค้ด ${it.bc||it.id}`+(it.prices[ks[0]]&&it.prices[ks[0]].l!=null?` | ราคาตั้ง ${fmt(it.prices[ks[0]].l)}`:"");
-    const lines=ks.map(k=>{const p=it.prices[k],s=sellOf(p.n);return `${DB.chains[k]} ทุน ${fmt(p.n)} | ขาย ${s==null?"–":fmt(s)}`;});
+    const lines=ks.map(k=>{const p=it.prices[k],s=sellOf(p.n);return `ทุน ${fmt(p.n)} | ขาย ${s==null?"–":fmt(s)}`;});
     return [head,sub,...lines].join("\n");
   });
-  let txt=`ราคา Beger (ขายรวม VAT ที่ GP ${GP}%)\n\n`+blocks.join("\n\n");
+  let txt=`ราคา Beger ห้าง ${DB.chains[ks[0]]} (ขายรวม VAT ที่ GP ${GP}%)\n\n`+blocks.join("\n\n");
   if(results.length>LINE_MAX) txt+=`\n\n…และอีก ${results.length-LINE_MAX} รายการ`;
   const fallback=()=>{const ta=document.createElement("textarea");ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";document.body.append(ta);ta.select();let ok=false;try{ok=document.execCommand("copy");}catch(e){}ta.remove();toast(ok?`คัดลอก ${list.length} รายการแล้ว วางใน LINE ได้เลย`:"คัดลอกไม่สำเร็จ");};
   try{ navigator.clipboard.writeText(txt).then(()=>toast(`คัดลอก ${list.length} รายการแล้ว วางใน LINE ได้เลย`),fallback); }catch(e){ fallback(); }
@@ -705,7 +705,22 @@ function fillFilters(){
   fill($("fSize"),sizes,"ทุกขนาด"); fill($("fMkt"),mkts,"ทุกกลุ่มสินค้า");
 }
 
+/* same barcode + identical prices in every chain -> keep the first row only */
+function dedupe(items){
+  const seen=new Set(), out=[];
+  let removed=0;
+  for(const it of items){
+    if(it.bc){
+      const key=it.bc+"|"+it.prices.map(p=>[p.l,p.d.join(","),p.n].join("/")).join("|");
+      if(seen.has(key)){removed++;continue;}
+      seen.add(key);
+    }
+    out.push(it);
+  }
+  return {items:out,removed};
+}
 function useDB(db,label){
+  const dd=dedupe(db.items); db.items=dd.items; db.removed=dd.removed;
   DB=db; DB.label=label;
   IDX=buildIndex(DB.items);
   let saved=null; try{saved=JSON.parse(lsGet(LS_CHAINS)||"null");}catch(e){}
@@ -713,7 +728,7 @@ function useDB(db,label){
   if(!activeChains.size) activeChains=new Set(DB.chains.map((_,k)=>k));
   buildChains(); fillFilters();
   {const tc=lsGet(LS_TCHAIN);const ix=DB.chains.indexOf(tc);TCHAIN=ix>=0?ix:null;}
-  $("meta").textContent=`${DB.items.length.toLocaleString("th-TH")} รายการ · ${DB.chains.length} ห้าง · ${label}`;
+  $("meta").textContent=`${DB.items.length.toLocaleString("th-TH")} รายการ · ${DB.chains.length} ห้าง · ${label}`+(DB.removed?` · ตัดบาร์โค้ดซ้ำราคาซ้ำ ${DB.removed.toLocaleString("th-TH")} รายการ`:"");
   runSearch();
 }
 
