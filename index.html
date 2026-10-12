@@ -1,3 +1,5 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;font-family:system-ui,sans-serif}[hidden]{display:none!important}img{max-width:100%}</style></head><body>
 <title>ค้นหาราคา Beger ทุกห้าง</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -660,7 +662,7 @@ async function exportXlsx(){
       ws.autoFilter={from:{row:2,column:1},to:{row:2+results.length,column:20}};
     });
     const buf=await wb.xlsx.writeBuffer();
-    await saveFile(`Beger_Price_${DB.chains[ks[0]]}_${stamp()}.xlsx`,new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    await saveFile(`Beger ทุน + ราคาแนะนำขาย (${DB.chains[ks[0]]}).xlsx`,new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
   }catch(e){ toast(e.message||"สร้างไฟล์ไม่สำเร็จ"); }
   finally{ const b=$("btnXlsx"); if(b){b.disabled=false;b.textContent="ส่งออก Excel · "+DB.chains[curChain()];} }
 }
@@ -809,3 +811,5 @@ function selectText(el){const r=document.createRange();r.selectNodeContents(el);
 })();
 })();
 </script>
+
+</body></html>
