@@ -494,9 +494,7 @@ function runSearch(){
 function renderSuggest(sugg){
   const box=$("suggest"); box.innerHTML="";
   if(sugg===null){
-    box.hidden=false;
-    box.append(Object.assign(document.createElement("span"),{textContent:"ลองค้น:"}));
-    EXAMPLES.forEach(x=>{const b=document.createElement("button");b.type="button";b.textContent=x;b.onclick=()=>{$("q").value=x;runSearch();};box.append(b);});
+    box.hidden=true;
     return;
   }
   if(!sugg.length){box.hidden=true;return;}
