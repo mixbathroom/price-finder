@@ -220,7 +220,7 @@ td.nobc,.tag.nobc{color:var(--danger);font-weight:600;font-family:inherit;font-s
   <div id="importPanel" class="panel" hidden></div>
   <div id="notice" class="notice" hidden></div>
   <div id="suggest" class="suggest" hidden></div>
-  <div class="status"><span id="count"></span><span class="legend">ราคาทุน Exvat (NTT) = ราคาหลังหักส่วนลดทุกขั้น · ราคาขายรวม Vat = ทุน ÷ (1 − GP%) × 1.07 ปัดเป็นบาท · ช่องสีเขียว = ห้างที่ NTT ต่ำสุด · <span style="color:var(--warn)">●</span> = NTT ราคาพิเศษ (ไม่ตรงสูตรส่วนลด)</span></div>
+  <div class="status"><span id="count"></span></div>
   <div id="viewbar" class="viewbar"></div>
   <div id="list" class="list"><div class="loading">กำลังโหลดข้อมูลราคา…</div></div>
   <div class="more"><button class="btn" id="btnMore" type="button" hidden>แสดงเพิ่ม</button></div>
@@ -583,6 +583,7 @@ function render(){
   }
   if(!activeChains.size){L.innerHTML=`<div class="empty">ยังไม่ได้เลือกห้าง กดชื่อห้างด้านบนเพื่อแสดงราคา</div>`;$("btnMore").hidden=true;return;}
   renderViewBar();
+  $("chains").style.display=VIEW==="card"?"":"none";
   if(VIEW==="table") L.innerHTML=sheetTable(results.slice(0,shown));
   else L.innerHTML=results.slice(0,shown).map(card).join("");
   const rest=results.length-shown;
@@ -793,7 +794,7 @@ function useDB(db,label){
   if(!activeChains.size) activeChains=new Set(DB.chains.map((_,k)=>k));
   buildChains(); fillFilters();
   {const tc=lsGet(LS_TCHAIN);const ix=DB.chains.indexOf(tc);TCHAIN=ix>=0?ix:null;}
-  $("meta").textContent=`${DB.items.length.toLocaleString("th-TH")} รายการ · ${DB.chains.length} ห้าง · ${label}`+(DB.removed?` · ตัดบาร์โค้ดซ้ำราคาซ้ำ ${DB.removed.toLocaleString("th-TH")} รายการ`:"");
+  $("meta").textContent=""; $("meta").title=`${DB.items.length.toLocaleString("th-TH")} รายการ · ${DB.chains.length} ห้าง · ${label}`+(DB.removed?` · ตัดบาร์โค้ดซ้ำราคาซ้ำ ${DB.removed.toLocaleString("th-TH")} รายการ`:"");
   runSearch();
 }
 
