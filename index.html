@@ -746,7 +746,6 @@ function copyLine(){
     const nm=String(it.th||it.en||"").replace(/\s+/g," ").trim();
     const m=nm.match(/^(.*?)\s+(ภายในและภายนอก|ภายใน|ภายนอก)(\s.*|)$/);
     const L=[`ลำดับที่ ${ix+1}`];
-    if(it.mkt) L.push(String(it.mkt).trim());
     if(m&&m[1]){L.push(m[1]);L.push((m[2]+m[3]).trim());}else L.push(nm);
     {const st=sizeTxt(it); if(st) L.push(`ปริมาณ | ${st}`);}
     if(it.spec) L.push(`BRAND SP | ${it.spec}`);
