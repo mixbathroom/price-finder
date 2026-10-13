@@ -559,7 +559,7 @@ function card(i){
     detail=`<div class="detail"><table class="ht"><thead>${head}</thead><tbody>${rows}</tbody></table></div><div class="unit">ส่วนลดเป็น % · ราคาขายรวม Vat คิดที่ GP ${GP}% แนะนำ</div>`;
   }
   const tags=[
-    it.size?`<span class="tag size">${esc(it.size)}</span>`:"",
+    sizeTxt(it)?`<span class="tag size">${esc(sizeTxt(it))}</span>`:"",
     `<span class="tag mono" data-copy="${esc(it.id)}" title="คลิกเพื่อคัดลอก">${hl(it.id)}</span>`,
     bcOf(it)?`<span class="tag mono" data-copy="${esc(bcOf(it))}" title="คลิกเพื่อคัดลอก">${hl(bcOf(it))}</span>`:`<span class="tag nobc">${NOBC}</span>`,
     it.mkt?`<span class="tag">${esc(it.mkt)}</span>`:"",
@@ -630,7 +630,7 @@ function sheetTable(idxs){
   const rows=idxs.map(i=>{
     const it=DB.items[i], p=it.prices[k], s=sellOf(p.n);
     return `<tr${picked.has(i)?' class="picked"':''}><td class="stick bc${bcOf(it)?"":" nobc"}" data-copy="${esc(bcOf(it)||it.id)}" title="${esc(it.id)} · คลิกเพื่อคัดลอก${bcOf(it)?"":" (ยังไม่มีการสร้างบาร์โค้ด คัดลอก ITEM ID)"}">${bcOf(it)?hl(bcOf(it)):NOBC}</td>
-      <td class="nm">${hl(it.th||it.en)}</td><td class="tx c art" data-copy="${esc(((it.art&&it.art[k])||[]).join(" "))}">${((it.art&&it.art[k])||[]).map(hl).join("<br>")||"–"}</td><td class="tx">${esc(it.sub)}</td><td class="tx">${esc(it.spec)}</td><td class="tx">${esc(it.feat)}</td><td class="tx">${hl(it.shade)}</td><td class="tx c">${esc(it.size)}</td>
+      <td class="nm">${hl(it.th||it.en)}</td><td class="tx c art" data-copy="${esc(((it.art&&it.art[k])||[]).join(" "))}">${((it.art&&it.art[k])||[]).map(hl).join("<br>")||"–"}</td><td class="tx">${esc(it.sub)}</td><td class="tx">${esc(it.spec)}</td><td class="tx">${esc(it.feat)}</td><td class="tx">${hl(it.shade)}</td><td class="tx c">${esc(sizeTxt(it))}</td>
       <td class="num">${fmt(p.l)}</td>${uc.map(j=>`<td class="num${p.d[j]?"":" z"}">${pc(p.d[j])}</td>`).join("")}
       <td class="num cost">${fmt(p.n)}${p.sp?'<span class="sp" title="NTT ราคาพิเศษ">●</span>':""}</td><td class="num gp">${GP}%</td><td class="num sell">${s==null?"–":fmt(s)}</td><td class="del"><label class="pick"><input type="checkbox" data-pick="${i}" aria-label="เลือกรายการนี้"${picked.has(i)?" checked":""}></label></td></tr>`;
   }).join("");
@@ -657,6 +657,38 @@ async function saveFile(filename,blob){
   setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},4000); toast("ดาวน์โหลดไฟล์แล้ว");
 }
 const NOBC="ยังไม่มีการสร้าง";
+const SIZE_L={Q1:0.946,G1:3.785,H1:9.463,D1:18.925};
+const VNB="(?<![A-Za-z0-9#\\-/.,_])", VNUM="(\\d+(?:[.,]\\d+)?)";
+const RE_L=new RegExp(VNB+VNUM+"\\s*(มิลลิลิตร|ลิตร|มล\\.?|ml\\b|cc\\b|ltr\\b|lt\\.?(?![A-Za-z])|l\\.?(?![A-Za-z]))","gi");
+const RE_GAL=new RegExp(VNB+VNUM+"\\s*(?:แกลลอน|gl\\.?(?![A-Za-z])|กล\\.?(?![ก-๙])|G(?=\\s*\\)))","g");
+const RE_KG=new RegExp(VNB+VNUM+"\\s*(?:kgs?\\.?(?![A-Za-z])|กก\\.?|กิโลกรัม)","gi");
+const RE_GR=new RegExp(VNB+VNUM+"\\s*(?:กรัม|g\\.?(?![A-Za-z]))","g");
+function vfmt(n){return String(Math.round(n*1000)/1000);}
+function vFirst(re,s){re.lastIndex=0;const all=[];let m;while((m=re.exec(s)))all.push(m);
+  if(!all.length) return null;
+  // prefer a match that sits inside parentheses
+  const inP=all.find(m=>{const b=s.lastIndexOf("(",m.index),c=s.lastIndexOf(")",m.index);return b>c;});
+  return inP||all[0];}
+function vIsSet(s,m){return /(ชุด|set)\s*\(?\s*$/i.test(s.slice(Math.max(0,m.index-8),m.index));}
+function vScan(s){
+  s=String(s||"");const out={L:"",K:""};let m;
+  if((m=vFirst(RE_L,s))){const v=parseFloat(m[1].replace(",","."));const u=m[2].toLowerCase();
+    if(/มิลลิลิตร|มล|ml|cc/.test(u)){out.L=v>=1000?`≈${vfmt(v/1000)} ลิตร`:`≈${vfmt(v)} ${/cc/.test(u)?"CC":"มล."}`;}
+    else out.L=`≈${vfmt(v)} ลิตร`;
+    if(vIsSet(s,m)) out.L+=" (ทั้งชุด)";}
+  else if((m=vFirst(RE_GAL,s))){const v=parseFloat(m[1].replace(",","."));out.L=`≈${vfmt(v*3.785)} ลิตร`+(vIsSet(s,m)?" (ทั้งชุด)":"");}
+  if((m=vFirst(RE_KG,s))) out.K=`≈${vfmt(parseFloat(m[1].replace(",",".")))} กก.`;
+  else if((m=vFirst(RE_GR,s))) out.K=`≈${vfmt(parseFloat(m[1].replace(",",".")))} กรัม`;
+  return out;
+}
+function volOf(it){
+  let a=vScan(it.th); if(!a.L&&!a.K) a=vScan(it.en);
+  if(a.L&&a.K) return `${a.L} / ${a.K}`;
+  if(a.L||a.K) return a.L||a.K;
+  if(SIZE_L[it.size]!=null) return `≈${SIZE_L[it.size]} ลิตร`;
+  return "";
+}
+function sizeTxt(it){const v=volOf(it); if(!it.size) return v; return v?`${it.size} · ${v}`:it.size;}
 function bcOf(it){const b=String(it.bc||"").trim();return /^\d{8,14}$/.test(b)?b:"";}
 function exportList(){ return picked.size?[...picked].sort((a,b)=>a-b):results; }
 function pickSuffix(){return picked.size?` (${picked.size} ที่เลือก)`:"";}
@@ -714,8 +746,9 @@ function copyLine(){
     const nm=String(it.th||it.en||"").replace(/\s+/g," ").trim();
     const m=nm.match(/^(.*?)\s+(ภายในและภายนอก|ภายใน|ภายนอก)(\s.*|)$/);
     const L=[`ลำดับที่ ${ix+1}`];
+    if(it.mkt) L.push(String(it.mkt).trim());
     if(m&&m[1]){L.push(m[1]);L.push((m[2]+m[3]).trim());}else L.push(nm);
-    if(it.size) L.push(`ปริมาณ | [${it.size}]`);
+    {const st=sizeTxt(it); if(st) L.push(`ปริมาณ | ${st}`);}
     if(it.spec) L.push(`BRAND SP | ${it.spec}`);
     if(it.shade) L.push(`SHADE | ${it.shade}`);
     L.push(`ITEM ID | ${it.id}`);
