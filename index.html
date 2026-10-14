@@ -711,8 +711,8 @@ async function exportXlsx(){
   try{
     if(typeof ExcelJS==="undefined") await loadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js");
     const wb=new ExcelJS.Workbook(); wb.creator="Beger Price Finder";
-    const HDR=["BARCODE","DESCR_TH","L3_SUBBRAND","L4_BrandSpecial","L8_FEATURE","L11_SHADE","SIZE","ราคาตั้งใหม่",...DISC_LABELS,"ราคาทุน Exvat","GP% แนะนำ","ราคาขายรวม Vat"];
-    const W=[17,44,22,26,13,12,7,12,8,8,8,8,9,8,8,8,9,15,11,16];
+    const HDR=["BARCODE","DESCR_TH","L3_SUBBRAND","L4_BrandSpecial","L8_FEATURE","L11_SHADE","SIZE","ราคาตั้งใหม่",...DISC_LABELS,"ราคาทุน Exvat","GP% แนะนำ","ราคาขายรวม Vat","ลิงก์รูปสินค้า"];
+    const W=[17,44,22,26,13,12,7,12,8,8,8,8,9,8,8,8,9,15,11,16,48];
     const fill=c=>({type:"pattern",pattern:"solid",fgColor:{argb:c}});
     const thin={style:"thin",color:{argb:"FFBFBFBF"}};
     const border={top:thin,left:thin,bottom:thin,right:thin};
@@ -736,9 +736,10 @@ async function exportXlsx(){
         row.getCell(18).numFmt="#,##0.00"; row.getCell(18).fill=fill("FFFBEEE4"); row.getCell(18).font={bold:true};
         row.getCell(19).numFmt="0%"; row.getCell(19).font={bold:true,color:{argb:"FF1F4FD8"}}; row.getCell(19).alignment={horizontal:"center"};
         row.getCell(20).numFmt="#,##0.00"; row.getCell(20).fill=fill("FFFBEEE4"); row.getCell(20).font={bold:true};
-        for(let c=1;c<=20;c++) row.getCell(c).border=border;
+        if(picOK(it)&&it.pic.url){const lc=row.getCell(21); lc.value={text:it.pic.url,hyperlink:it.pic.url}; lc.font={color:{argb:"FF0563C1"},underline:true};}
+        for(let c=1;c<=21;c++) row.getCell(c).border=border;
       });
-      ws.autoFilter={from:{row:2,column:1},to:{row:2+XL.length,column:20}};
+      ws.autoFilter={from:{row:2,column:1},to:{row:2+XL.length,column:21}};
     });
     const buf=await wb.xlsx.writeBuffer();
     await saveFile(`Beger ทุน + ราคาแนะนำขาย (${DB.chains[ks[0]]}).xlsx`,new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
