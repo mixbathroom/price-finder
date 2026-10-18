@@ -189,12 +189,19 @@ td.nobc,.tag.nobc{color:var(--danger);font-weight:600;font-family:inherit;font-s
 .c-head{align-items:flex-start}
 td.pic{padding:2px 4px}td.pic .thumb{width:34px;height:44px;margin:0}
 h1 .ver{font-size:.62rem;font-weight:600;color:var(--muted,#6b7280);background:var(--accent-soft,#e8f0fe);border-radius:999px;padding:2px 8px;vertical-align:middle;white-space:nowrap}
+h1 .pdate{font-size:.62rem;font-weight:700;color:#0b6b3a;background:#dff5e8;border-radius:999px;padding:2px 8px;vertical-align:middle;white-space:nowrap}
+h1 .pdate.imp{color:#8a4b00;background:#ffecc7}
+#btnClearF{color:var(--danger);border-color:var(--danger)}
+#btnClearF:disabled{color:var(--muted,#9aa3ad);border-color:var(--line);opacity:.6;cursor:default}
+/* filters keep a fixed width so they never jump when their option text changes */
+.filters select{text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+@media (min-width:561px){.filters select{flex:0 0 250px;width:250px;max-width:250px;min-width:0}#fMkt{max-width:250px}#btnClearF{flex:0 0 auto;min-width:118px}}
 </style>
 
 <header class="top">
   <div class="wrap">
     <div class="brandrow">
-      <h1>ค้นหาราคา Beger ทุกห้าง <span class="ver">v43 · 18 ต.ค. 69</span></h1>
+      <h1>ค้นหาราคา Beger ทุกห้าง <span class="ver">v47 · 18 ต.ค. 69</span> <span class="pdate" id="pdate"></span></h1>
       <span class="meta" id="meta">กำลังโหลดข้อมูล…</span>
     </div>
     <div class="searchbox">
@@ -210,6 +217,7 @@ h1 .ver{font-size:.62rem;font-weight:600;color:var(--muted,#6b7280);background:v
       <select id="fVol" aria-label="ปริมาณ"><option value="">ทุกปริมาณ</option></select>
       <select id="fMkt" aria-label="กลุ่มสินค้า"><option value="">ทุกกลุ่มสินค้า</option></select>
       <select id="fSub" aria-label="L3_SUBBRAND"><option value="">ทุก L3_SUBBRAND</option></select>
+      <button type="button" class="btn ghost" id="btnClearF" disabled>ล้างตัวกรอง</button>
       <button class="btn" id="btnDetail" type="button" aria-pressed="true">ซ่อนส่วนลดทุกขั้น</button>
       <label class="gpbox" for="gp">GP% แนะนำ <input id="gp" type="number" inputmode="decimal" min="0" max="99" step="0.5" value="18"></label>
       <button class="btn" id="btnImport" type="button">อัปเดตจากไฟล์ Excel</button>
@@ -237,7 +245,7 @@ h1 .ver{font-size:.62rem;font-weight:600;color:var(--muted,#6b7280);background:v
 "use strict";
 const DISC_LABELS=["Std1","Std2","Year","Month","Rolling","SP.","EXTRA","Cash","เร่งเบิก"];
 const DISC_SHORT=["S1","S2","Yr","Mo","Rol","SP","Ext","Csh","เร่ง"];
-const SEED_LABEL="ไฟล์ตั้งต้น (12 ต.ค. 2569)";
+const SEED_LABEL="ไฟล์ตั้งต้น (12 ต.ค. 2569)", SEED_DATE="ราคา ณ 12 ต.ค. 69";
 const LS_CHAINS="bpf_chains_v2", LS_DETAIL="bpf_detail_v2", LS_GP="bpf_gp";
 let GP=18;
 /* ราคาขายรวม VAT = ROUND( ราคาทุน Ex VAT / (1 - GP%) * 1.07 , 0 ) */
@@ -503,6 +511,7 @@ function runSearch(){
     $("fSize").value="";$("fVol").value="";$("fMkt").value="";$("fSub").value=""; runSearch.lastRaw=raw; toast("ไม่มีขนาดที่เลือกในคำค้นนี้ จึงล้างตัวกรองให้"); return runSearch(); }
   runSearch.lastRaw=raw;
   updateFacets(base.map(r=>r.i),$("fSize").value,$("fVol").value,$("fMkt").value,$("fSub").value);
+  { const any=["fSize","fVol","fMkt","fSub"].filter(id=>$(id).value).length; const bc=$("btnClearF"); bc.disabled=!any; bc.title=any?`ล้าง ${any} ตัวกรองที่เลือกอยู่`:"ยังไม่ได้เลือกตัวกรอง"; }
   if(sort==="ntt"||sort==="nttd"){
     const dir=sort==="ntt"?1:-1;
     list.forEach(r=>r.m=minNtt(it(r.i)));
@@ -935,6 +944,7 @@ function dedupe(items,ks){
 function useDB(db,label){
   const dd=dedupe(db.items,db.chains.map((c,k)=>TABLE_CHAINS.includes(String(c).toUpperCase())?k:-1).filter(k=>k>=0)); db.items=dd.items; db.removed=dd.removed;
   DB=db; DB.label=label; picked.clear();
+  { const pd=$("pdate"); if(pd){ const seed=label===SEED_LABEL; pd.textContent=seed?SEED_DATE:"ราคาจากไฟล์นำเข้า: "+label; pd.classList.toggle("imp",!seed); pd.title=seed?"ราคาจากไฟล์ราคาตั้งต้นที่ฝังในแอป":"กำลังใช้ไฟล์ราคาที่นำเข้าเองในเบราว์เซอร์นี้"; } }
   if(!db.imgs||!Object.keys(db.imgs).length){ // imported price file: borrow pictures and article codes from the built-in data
     decodeSeed().then(P=>{ if(DB!==db) return; db.imgs=P.imgs||{};
       db.items.forEach(it=>{ const m=P.imap&&P.imap[it.id]; if(m) it.pic={img:m[0],url:m[1]!=null?P.urls[m[1]]:null,how:m[2]};
@@ -979,6 +989,7 @@ let tmr; $("q").addEventListener("input",()=>{clearTimeout(tmr);tmr=setTimeout(r
 $("q").addEventListener("keydown",e=>{if(e.key==="Escape"){$("q").value="";runSearch();}});
 $("clear").onclick=()=>{$("q").value="";runSearch();$("q").focus();};
 ["fSize","fVol","fMkt","fSub"].forEach(id=>$(id).addEventListener("change",runSearch));
+$("btnClearF").onclick=()=>{["fSize","fVol","fMkt","fSub"].forEach(id=>$(id).value="");runSearch();toast("ล้างตัวกรองแล้ว");};
 $("viewbar").addEventListener("click",e=>{
   const v=e.target.closest("[data-view]"); if(v){VIEW=v.dataset.view;lsSet(LS_VIEW,VIEW);refreshKeepPage();return;}
   const c=e.target.closest("[data-tchain]"); if(c){TCHAIN=+c.dataset.tchain;lsSet(LS_TCHAIN,DB.chains[TCHAIN]);refreshKeepPage();}
